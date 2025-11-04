@@ -1,0 +1,65 @@
+pipeline {
+    agent any
+
+    environment {
+        SCANNER_HOME = tool 'sonar-scanner'
+    }
+
+    stages {
+
+        // --------------------- GIT CHECKOUT ---------------------
+        stage('Git Checkout') {
+            steps {
+                git branch: 'main', url: 'https://github.com/mdmokchhedulislam/Zero-Downtime-Kubernetes-Deployments.git'
+            }
+        }
+
+        // --------------------- CODE SCANS ---------------------
+        stage('GitLeaks Scan') {
+            steps {
+                dir('vote') {
+                    sh 'gitleaks detect --source . --exit-code 1'
+                }
+            }
+        }
+
+        stage('SonarQube Analysis') {
+            steps {
+                dir('vote') {
+                    withSonarQubeEnv('sonar') {
+                        sh '''
+                            $SCANNER_HOME/bin/sonar-scanner \
+                            -Dsonar.projectName=vote_service-project \
+                            -Dsonar.projectKey=vote_service-project
+                        '''
+                    }
+                }
+            }
+        }
+
+        stage('Trivy FS Scan') {
+            steps {
+                dir('vote') {
+                    sh 'trivy fs --format table -o fs-report.html .'
+                }
+            }
+        }
+
+        // --------------------- BUILD & PUSH DOCKER IMAGE ---------------------
+        stage('Build, Tag & Push Vote Service') {
+            steps {
+                script {
+                    withDockerRegistry(credentialsId: 'vote_service') {
+                        dir('vote') {
+                            sh '''
+                                docker build -t mokchhedul/vote_service:latest .
+                                trivy image --format table -o vote_service-image-report.html mokchhedul/vote_service:latest
+                                docker push mokchhedul/vote_service:latest
+                            '''
+                        }
+                    }
+                }
+            }
+        }
+    }
+}
