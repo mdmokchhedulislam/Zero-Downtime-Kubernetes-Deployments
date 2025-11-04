@@ -49,7 +49,7 @@ pipeline {
         stage('Build, Tag & Push Vote Service') {
             steps {
                 script {
-                    withDockerRegistry(credentialsId: 'vote_service') {
+                    withDockerRegistry(credentialsId: 'docker-cred') {
                         dir('vote') {
                             sh '''
                                 docker build -t mokchhedul/vote_service:latest .
