@@ -62,7 +62,7 @@ pipeline {
         stage('Build, Tag & Push Worker Service') {
             steps {
                 script {
-                    withDockerRegistry(credentialsId: 'worker_service') {
+                    withDockerRegistry(credentialsId: 'docker-cred') {
                         dir('worker') {
                             sh '''
                                 docker build -t mokchhedul/worker_service:latest .
