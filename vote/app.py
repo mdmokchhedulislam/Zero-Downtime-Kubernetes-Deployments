@@ -6,9 +6,14 @@ import random
 import json
 import logging
 
+# === Environment Variables ===
 option_a = os.getenv('OPTION_A', "Cats")
 option_b = os.getenv('OPTION_B', "Dogs")
 hostname = socket.gethostname()
+redis_host = os.getenv('REDIS_HOST', 'localhost')
+redis_port = int(os.getenv('REDIS_PORT', 6379))
+flask_port = int(os.getenv('FLASK_PORT', 80))
+debug_mode = os.getenv('FLASK_DEBUG', 'True').lower() in ['true', '1', 'yes']
 
 app = Flask(__name__)
 
@@ -16,14 +21,9 @@ gunicorn_error_logger = logging.getLogger('gunicorn.error')
 app.logger.handlers.extend(gunicorn_error_logger.handlers)
 app.logger.setLevel(logging.INFO)
 
-# def get_redis():
-#     if not hasattr(g, 'redis'):
-#         g.redis = Redis(host="redis", db=0, socket_timeout=5)
-#     return g.redis
-
 def get_redis():
     if not hasattr(g, 'redis'):
-        g.redis = Redis(host="localhost", db=0, socket_timeout=5)
+        g.redis = Redis(host=redis_host, port=redis_port, db=0, socket_timeout=5)
     return g.redis
 
 @app.route("/", methods=['POST','GET'])
@@ -51,6 +51,5 @@ def hello():
     resp.set_cookie('voter_id', voter_id)
     return resp
 
-
 if __name__ == "__main__":
-    app.run(host='0.0.0.0', port=80, debug=True, threaded=True)
+    app.run(host='0.0.0.0', port=flask_port, debug=debug_mode, threaded=True)
