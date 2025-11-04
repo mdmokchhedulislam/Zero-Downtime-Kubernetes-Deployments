@@ -1,0 +1,11 @@
+result:
+  service:
+    name: result-service
+    port: 5000
+    type: ClusterIP
+  replicaCount: 2
+  selector: result-app
+  image:
+    repository: myrepo/result
+    tag: latest
+    pullPolicy: Always
