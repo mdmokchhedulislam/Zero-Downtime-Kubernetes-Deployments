@@ -1,8 +1,6 @@
 using System;
 using System.Data.Common;
 using System.Linq;
-using System.Net;
-using System.Net.Sockets;
 using System.Threading;
 using Newtonsoft.Json;
 using Npgsql;
@@ -16,42 +14,56 @@ namespace Worker
         {
             try
             {
-                var pgsql = OpenDbConnection("Server=db;Username=postgres;Password=postgres;");
-                var redisConn = OpenRedisConnection("redis");
+                // === Read Environment Variables ===
+                string pgHost = Environment.GetEnvironmentVariable("POSTGRES_HOST") ?? "localhost";
+                string pgPort = Environment.GetEnvironmentVariable("POSTGRES_PORT") ?? "5432";
+                string pgDb = Environment.GetEnvironmentVariable("POSTGRES_DB") ?? "persondb";
+                string pgUser = Environment.GetEnvironmentVariable("POSTGRES_USER") ?? "postgres";
+                string pgPassword = Environment.GetEnvironmentVariable("POSTGRES_PASSWORD") ?? "password123";
+
+                string redisHost = Environment.GetEnvironmentVariable("REDIS_HOST") ?? "localhost";
+                string redisPort = Environment.GetEnvironmentVariable("REDIS_PORT") ?? "6379";
+
+                int sleepMs = int.Parse(Environment.GetEnvironmentVariable("SLEEP_MS") ?? "100");
+
+                // === PostgreSQL Connection ===
+                string connStr = $"Host={pgHost};Port={pgPort};Username={pgUser};Password={pgPassword};Database={pgDb};";
+                var pgsql = OpenDbConnection(connStr);
+
+                // === Redis Connection ===
+                var redisConn = OpenRedisConnection($"{redisHost}:{redisPort}");
                 var redis = redisConn.GetDatabase();
 
-                // Keep alive is not implemented in Npgsql yet. This workaround was recommended:
-                // https://github.com/npgsql/npgsql/issues/1214#issuecomment-235828359
+                // Keep-alive workaround
                 var keepAliveCommand = pgsql.CreateCommand();
                 keepAliveCommand.CommandText = "SELECT 1";
 
                 var definition = new { vote = "", voter_id = "" };
+
                 while (true)
                 {
-                    // Slow down to prevent CPU spike, only query each 100ms
-                    Thread.Sleep(100);
+                    Thread.Sleep(sleepMs);
 
-                    // Reconnect redis if down
-                    if (redisConn == null || !redisConn.IsConnected) {
-                        Console.WriteLine("Reconnecting Redis");
-                        redisConn = OpenRedisConnection("redis");
+                    if (redisConn == null || !redisConn.IsConnected)
+                    {
+                        Console.WriteLine("Reconnecting Redis...");
+                        redisConn = OpenRedisConnection($"{redisHost}:{redisPort}");
                         redis = redisConn.GetDatabase();
                     }
+
                     string json = redis.ListLeftPopAsync("votes").Result;
                     if (json != null)
                     {
                         var vote = JsonConvert.DeserializeAnonymousType(json, definition);
                         Console.WriteLine($"Processing vote for '{vote.vote}' by '{vote.voter_id}'");
-                        // Reconnect DB if down
-                        if (!pgsql.State.Equals(System.Data.ConnectionState.Open))
+
+                        if (pgsql.State != System.Data.ConnectionState.Open)
                         {
-                            Console.WriteLine("Reconnecting DB");
-                            pgsql = OpenDbConnection("Server=db;Username=postgres;Password=postgres;");
+                            Console.WriteLine("Reconnecting DB...");
+                            pgsql = OpenDbConnection(connStr);
                         }
-                        else
-                        { // Normal +1 vote requested
-                            UpdateVote(pgsql, vote.voter_id, vote.vote);
-                        }
+
+                        UpdateVote(pgsql, vote.voter_id.ToString(), vote.vote);
                     }
                     else
                     {
@@ -78,61 +90,45 @@ namespace Worker
                     connection.Open();
                     break;
                 }
-                catch (SocketException)
+                catch (Exception ex)
                 {
-                    Console.Error.WriteLine("Waiting for db");
-                    Thread.Sleep(1000);
-                }
-                catch (DbException)
-                {
-                    Console.Error.WriteLine("Waiting for db");
+                    Console.Error.WriteLine("Waiting for DB: " + ex.Message);
                     Thread.Sleep(1000);
                 }
             }
 
-            Console.Error.WriteLine("Connected to db");
+            Console.Error.WriteLine("Connected to DB");
 
-            var command = connection.CreateCommand();
+            using var command = connection.CreateCommand();
             command.CommandText = @"CREATE TABLE IF NOT EXISTS votes (
                                         id VARCHAR(255) NOT NULL UNIQUE,
                                         vote VARCHAR(255) NOT NULL
-                                    )";
+                                    );";
             command.ExecuteNonQuery();
 
             return connection;
         }
 
-        private static ConnectionMultiplexer OpenRedisConnection(string hostname)
+        private static ConnectionMultiplexer OpenRedisConnection(string hostAndPort)
         {
-            // Use IP address to workaround https://github.com/StackExchange/StackExchange.Redis/issues/410
-            var ipAddress = GetIp(hostname);
-            Console.WriteLine($"Found redis at {ipAddress}");
-
             while (true)
             {
                 try
                 {
-                    Console.Error.WriteLine("Connecting to redis");
-                    return ConnectionMultiplexer.Connect(ipAddress);
+                    Console.Error.WriteLine("Connecting to Redis at " + hostAndPort);
+                    return ConnectionMultiplexer.Connect(hostAndPort);
                 }
-                catch (RedisConnectionException)
+                catch (RedisConnectionException ex)
                 {
-                    Console.Error.WriteLine("Waiting for redis");
+                    Console.Error.WriteLine("Waiting for Redis: " + ex.Message);
                     Thread.Sleep(1000);
                 }
             }
         }
 
-        private static string GetIp(string hostname)
-            => Dns.GetHostEntryAsync(hostname)
-                .Result
-                .AddressList
-                .First(a => a.AddressFamily == AddressFamily.InterNetwork)
-                .ToString();
-
         private static void UpdateVote(NpgsqlConnection connection, string voterId, string vote)
         {
-            var command = connection.CreateCommand();
+            using var command = connection.CreateCommand();
             try
             {
                 command.CommandText = "INSERT INTO votes (id, vote) VALUES (@id, @vote)";
@@ -143,11 +139,9 @@ namespace Worker
             catch (DbException)
             {
                 command.CommandText = "UPDATE votes SET vote = @vote WHERE id = @id";
+                command.Parameters.AddWithValue("@id", voterId);
+                command.Parameters.AddWithValue("@vote", vote);
                 command.ExecuteNonQuery();
-            }
-            finally
-            {
-                command.Dispose();
             }
         }
     }
