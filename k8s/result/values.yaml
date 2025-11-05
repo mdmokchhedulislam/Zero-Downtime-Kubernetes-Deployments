@@ -1,11 +1,23 @@
 result:
   service:
-    name: result-service
-    port: 5000
+    name: result
+    selector: result
+    port: 4000
     type: ClusterIP
-  replicaCount: 2
-  selector: result-app
+  replicaCount: 3
   image:
     repository: mokchhedul/result_service
     tag: latest
-    pullPolicy: Always
+    canaryTag: v2
+    pullPolicy: IfNotPresent
+  postgres:
+    host: postgress
+    port: 5432
+    db: persondb
+    user: postgres
+    password: postgres
+  ingress:
+    host: www.mokchhedulislam.page.gd
+  canary:
+    replicaCount: 1
+    weight: 10
