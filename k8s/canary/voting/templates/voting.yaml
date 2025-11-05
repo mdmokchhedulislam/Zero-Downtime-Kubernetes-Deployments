@@ -1,0 +1,222 @@
+{{- /*
+This Helm template includes:
+- ConfigMap
+- Stable + Canary Deployment
+- Stable + Canary Service
+- Stable + Canary Ingress
+*/ -}}
+
+# ----------------------------
+# ConfigMap
+# ----------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.vote.service.name }}-config
+data:
+  OPTION_A: "{{ .Values.vote.options.optionA }}"
+  OPTION_B: "{{ .Values.vote.options.optionB }}"
+  REDIS_HOST: "{{ .Values.vote.redis.host }}"
+  REDIS_PORT: "{{ .Values.vote.redis.port }}"
+  FLASK_PORT: "{{ .Values.vote.flask.port }}"
+  FLASK_DEBUG: "{{ .Values.vote.flask.debug }}"
+
+# ----------------------------
+# Stable Deployment
+# ----------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.vote.service.name }}
+spec:
+  replicas: {{ .Values.vote.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.vote.selector }}
+      version: stable
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.vote.selector }}
+        version: stable
+    spec:
+      containers:
+        - name: {{ .Values.vote.service.name }}
+          image: "{{ .Values.vote.image.repository }}:{{ .Values.vote.image.tag }}"
+          imagePullPolicy: {{ .Values.vote.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.vote.service.port }}
+          env:
+            - name: OPTION_A
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: OPTION_A
+            - name: OPTION_B
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: OPTION_B
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: REDIS_PORT
+            - name: FLASK_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: FLASK_PORT
+            - name: FLASK_DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: FLASK_DEBUG
+
+# ----------------------------
+# Canary Deployment
+# ----------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.vote.service.name }}-canary
+spec:
+  replicas: {{ .Values.vote.canary.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.vote.selector }}
+      version: canary
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.vote.selector }}
+        version: canary
+    spec:
+      containers:
+        - name: {{ .Values.vote.service.name }}-canary
+          image: "{{ .Values.vote.image.repository }}:{{ .Values.vote.image.canaryTag }}"
+          imagePullPolicy: {{ .Values.vote.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.vote.service.port }}
+          env:
+            - name: OPTION_A
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: OPTION_A
+            - name: OPTION_B
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: OPTION_B
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: REDIS_PORT
+            - name: FLASK_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: FLASK_PORT
+            - name: FLASK_DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: FLASK_DEBUG
+
+# ----------------------------
+# Stable Service
+# ----------------------------
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.vote.service.name }}
+spec:
+  selector:
+    app: {{ .Values.vote.selector }}
+    version: stable
+  ports:
+    - protocol: TCP
+      port: {{ .Values.vote.service.port }}
+      targetPort: {{ .Values.vote.service.port }}
+  type: {{ .Values.vote.service.type }}
+
+# ----------------------------
+# Canary Service
+# ----------------------------
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.vote.service.name }}-canary
+spec:
+  selector:
+    app: {{ .Values.vote.selector }}
+    version: canary
+  ports:
+    - protocol: TCP
+      port: {{ .Values.vote.service.port }}
+      targetPort: {{ .Values.vote.service.port }}
+  type: {{ .Values.vote.service.type }}
+
+# ----------------------------
+# Stable Ingress
+# ----------------------------
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.vote.service.name }}-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: {{ .Values.vote.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.vote.service.name }}
+                port:
+                  number: {{ .Values.vote.service.port }}
+
+# ----------------------------
+# Canary Ingress
+# ----------------------------
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.vote.service.name }}-ingress-canary
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "{{ .Values.vote.canary.weight }}"
+spec:
+  rules:
+    - host: {{ .Values.vote.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.vote.service.name }}-canary
+                port:
+                  number: {{ .Values.vote.service.port }}

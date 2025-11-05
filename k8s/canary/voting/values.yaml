@@ -1,0 +1,26 @@
+vote:
+  service:
+    name: vote
+    selector: vote
+    port: 80
+    type: ClusterIP
+  replicaCount: 3
+  canary:
+    replicaCount: 1
+    weight: 10
+  image:
+    repository: mokchhedul/vote_service
+    tag: latest
+    canaryTag: v2
+    pullPolicy: IfNotPresent
+  options:
+    optionA: Cats
+    optionB: Dogs
+  redis:
+    host: redis
+    port: 6379
+  flask:
+    port: 80
+    debug: True
+  ingress:
+    host: www.mokchhedulislam.page.gd
