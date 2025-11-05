@@ -6,6 +6,6 @@ result:
   replicaCount: 2
   selector: result-app
   image:
-    repository: myrepo/result
+    repository: mokchhedul/result_service
     tag: latest
     pullPolicy: Always

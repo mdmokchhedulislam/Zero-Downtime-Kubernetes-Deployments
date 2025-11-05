@@ -6,6 +6,6 @@ vote:
   selector: vote
   replicaCount: 2
   image:
-    repository: dockersamples/examplevotingapp_vote
+    repository: mokchhedul/vote_service
     tag: latest
     pullPolicy: IfNotPresent

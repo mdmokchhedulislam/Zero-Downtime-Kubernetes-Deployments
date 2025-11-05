@@ -4,6 +4,6 @@ worker:
   selector: worker
   replicaCount: 1
   image:
-    repository: dockersamples/examplevotingapp_worker
+    repository: mokchhedul/worker_service
     tag: latest
     pullPolicy: IfNotPresent
