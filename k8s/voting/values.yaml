@@ -1,0 +1,11 @@
+vote:
+  service:
+    name: vote
+    type: ClusterIP
+    port: 80
+  selector: vote
+  replicaCount: 2
+  image:
+    repository: dockersamples/examplevotingapp_vote
+    tag: latest
+    pullPolicy: IfNotPresent

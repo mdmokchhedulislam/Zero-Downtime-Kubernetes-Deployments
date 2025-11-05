@@ -1,0 +1,78 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: vote-config
+data:
+  OPTION_A: "Cats"
+  OPTION_B: "Dogs"
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+  FLASK_PORT: "80"
+  FLASK_DEBUG: "True"
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.vote.service.name }}
+spec:
+  replicas: {{ .Values.vote.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.vote.selector }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.vote.selector }}
+    spec:
+      containers:
+        - name: {{ .Values.vote.service.name }}
+          image: "{{ .Values.vote.image.repository }}:{{ .Values.vote.image.tag }}"
+          imagePullPolicy: {{ .Values.vote.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.vote.service.port }}
+          env:
+            - name: OPTION_A
+              valueFrom:
+                configMapKeyRef:
+                  name: vote-config
+                  key: OPTION_A
+            - name: OPTION_B
+              valueFrom:
+                configMapKeyRef:
+                  name: vote-config
+                  key: OPTION_B
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: vote-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: vote-config
+                  key: REDIS_PORT
+            - name: FLASK_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: vote-config
+                  key: FLASK_PORT
+            - name: FLASK_DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: vote-config
+                  key: FLASK_DEBUG
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.vote.service.name }}
+spec:
+  selector:
+    app: {{ .Values.vote.selector }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.vote.service.port }}
+      targetPort: {{ .Values.vote.service.port }}
+  type: {{ .Values.vote.service.type }}
