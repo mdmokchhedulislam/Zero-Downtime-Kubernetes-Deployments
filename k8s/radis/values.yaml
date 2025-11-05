@@ -5,5 +5,5 @@ redis:
     tag: 7.0.12
     pullPolicy: IfNotPresent
   port: 6379
-  password: mypassword123
+  password: password123
   serviceType: ClusterIP

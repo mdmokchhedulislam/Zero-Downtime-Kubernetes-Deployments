@@ -1,4 +1,5 @@
 vote:
+  password: password123
   service:
     name: vote
     type: ClusterIP
