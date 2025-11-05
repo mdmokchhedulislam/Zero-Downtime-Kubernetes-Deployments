@@ -1,4 +1,5 @@
 worker:
+  password: mypassword123
   service:
     name: worker
   selector: worker
