@@ -1,0 +1,216 @@
+
+
+# ----------------------------
+# ConfigMap
+# ----------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.result.service.name }}-config
+data:
+  POSTGRES_HOST: "{{ .Values.result.postgres.host }}"
+  POSTGRES_PORT: "{{ .Values.result.postgres.port }}"
+  POSTGRES_DB: "{{ .Values.result.postgres.db }}"
+
+# ----------------------------
+# Secret
+# ----------------------------
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Values.result.service.name }}-secret
+type: Opaque
+stringData:
+  POSTGRES_USER: "{{ .Values.result.postgres.user }}"
+  POSTGRES_PASSWORD: "{{ .Values.result.postgres.password }}"
+
+# ----------------------------
+# Stable Deployment
+# ----------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.result.service.name }}
+spec:
+  replicas: {{ .Values.result.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.result.selector }}
+      version: stable
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.result.selector }}
+        version: stable
+    spec:
+      containers:
+        - name: {{ .Values.result.service.name }}
+          image: "{{ .Values.result.image.repository }}:{{ .Values.result.image.tag }}"
+          imagePullPolicy: {{ .Values.result.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.result.service.port }}
+          env:
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.result.service.name }}-config
+                  key: POSTGRES_HOST
+            - name: POSTGRES_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.result.service.name }}-config
+                  key: POSTGRES_PORT
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.result.service.name }}-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.result.service.name }}-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.result.service.name }}-secret
+                  key: POSTGRES_PASSWORD
+
+# ----------------------------
+# Canary Deployment
+# ----------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.result.service.name }}-canary
+spec:
+  replicas: {{ .Values.result.canary.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.result.selector }}
+      version: canary
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.result.selector }}
+        version: canary
+    spec:
+      containers:
+        - name: {{ .Values.result.service.name }}-canary
+          image: "{{ .Values.result.image.repository }}:{{ .Values.result.image.canaryTag }}"
+          imagePullPolicy: {{ .Values.result.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.result.service.port }}
+          env:
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.result.service.name }}-config
+                  key: POSTGRES_HOST
+            - name: POSTGRES_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.result.service.name }}-config
+                  key: POSTGRES_PORT
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.result.service.name }}-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.result.service.name }}-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.result.service.name }}-secret
+                  key: POSTGRES_PASSWORD
+
+# ----------------------------
+# Stable Service
+# ----------------------------
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.result.service.name }}
+spec:
+  selector:
+    app: {{ .Values.result.selector }}
+    version: stable
+  ports:
+    - protocol: TCP
+      port: {{ .Values.result.service.port }}
+      targetPort: {{ .Values.result.service.port }}
+  type: {{ .Values.result.service.type }}
+
+# ----------------------------
+# Canary Service
+# ----------------------------
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.result.service.name }}-canary
+spec:
+  selector:
+    app: {{ .Values.result.selector }}
+    version: canary
+  ports:
+    - protocol: TCP
+      port: {{ .Values.result.service.port }}
+      targetPort: {{ .Values.result.service.port }}
+  type: {{ .Values.result.service.type }}
+
+# ----------------------------
+# Stable Ingress
+# ----------------------------
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.result.service.name }}-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: {{ .Values.result.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.result.service.name }}
+                port:
+                  number: {{ .Values.result.service.port }}
+
+# ----------------------------
+# Canary Ingress
+# ----------------------------
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.result.service.name }}-ingress-canary
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    nginx.ingress.kubernetes.io/canary: "true"
+    nginx.ingress.kubernetes.io/canary-weight: "{{ .Values.result.canary.weight }}"
+spec:
+  rules:
+    - host: {{ .Values.result.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.result.service.name }}-canary
+                port:
+                  number: {{ .Values.result.service.port }}
