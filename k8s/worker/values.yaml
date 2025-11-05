@@ -14,11 +14,11 @@ worker:
     canaryTag: v2
     pullPolicy: IfNotPresent
   postgres:
-    host: localhost
+    host: postgres
     port: 5432
     db: persondb
     user: postgres
-    password: password123
+    password: postgres
   redis:
     host: redis
     port: 6379
