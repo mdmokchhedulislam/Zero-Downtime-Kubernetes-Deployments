@@ -2,7 +2,7 @@ result:
   service:
     name: result
     selector: result
-    port: 4000
+    port: 80
     type: ClusterIP
   replicaCount: 3
   image:
