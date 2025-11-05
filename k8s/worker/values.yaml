@@ -1,10 +1,27 @@
 worker:
-  password: mypassword123
   service:
     name: worker
-  selector: worker
-  replicaCount: 1
+    selector: worker
+    port: 4000
+    type: ClusterIP
+  replicaCount: 3
+  canary:
+    replicaCount: 1
+    weight: 10
   image:
     repository: mokchhedul/worker_service
     tag: latest
+    canaryTag: v2
     pullPolicy: IfNotPresent
+  postgres:
+    host: localhost
+    port: 5432
+    db: persondb
+    user: postgres
+    password: password123
+  redis:
+    host: redis
+    port: 6379
+  sleepMS: 100
+  ingress:
+    host: www.mokchhedulislam.page.gd

@@ -95,3 +95,19 @@ spec:
                 configMapKeyRef:
                   name: worker-config
                   key: SLEEP_MS
+
+
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.worker.service.name }}
+spec:
+  selector:
+    app: {{ .Values.worker.selector }}
+    version: stable
+  ports:
+    - protocol: TCP
+      port: {{ .Values.worker.service.port }}
+      targetPort: {{ .Values.worker.service.port }}
+  type: {{ .Values.worker.service.type }}
