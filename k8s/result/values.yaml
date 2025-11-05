@@ -11,7 +11,7 @@ result:
     canaryTag: v2
     pullPolicy: IfNotPresent
   postgres:
-    host: postgress
+    host: postgres
     port: 5432
     db: persondb
     user: postgres

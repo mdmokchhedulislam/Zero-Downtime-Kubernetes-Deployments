@@ -25,7 +25,7 @@ stringData:
   POSTGRES_PASSWORD: "{{ .Values.result.postgres.password }}"
 
 # ----------------------------
-# Stable Deployment
+#  Deployment
 # ----------------------------
 ---
 apiVersion: apps/v1
@@ -33,16 +33,14 @@ kind: Deployment
 metadata:
   name: {{ .Values.result.service.name }}
 spec:
-  replicas: {{ .Values.result.replicaCount }}
+  replicas: {{ .Values.result.service.replicaCount }}
   selector:
     matchLabels:
-      app: {{ .Values.result.selector }}
-      version: stable
+      app: {{ .Values.result.service.selector }}
   template:
     metadata:
       labels:
-        app: {{ .Values.result.selector }}
-        version: stable
+        app: {{ .Values.result.service.selector }}
     spec:
       containers:
         - name: {{ .Values.result.service.name }}
@@ -83,7 +81,7 @@ metadata:
   name: {{ .Values.result.service.name }}
 spec:
   selector:
-    app: {{ .Values.result.selector }}
+    app: {{ .Values.result.service.selector }}
     version: stable
   ports:
     - protocol: TCP
