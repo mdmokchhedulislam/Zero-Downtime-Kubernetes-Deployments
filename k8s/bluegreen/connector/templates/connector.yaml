@@ -1,0 +1,176 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker-config
+data:
+  # PostgreSQL Config
+  POSTGRES_HOST: "postgres"
+  POSTGRES_PORT: "5432"
+  POSTGRES_DB: "persondb"
+
+  # Redis Config
+  REDIS_HOST: "redis"
+  REDIS_PORT: "6379"
+
+  # App Settings
+  SLEEP_MS: "100"
+
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: worker-secret
+type: Opaque
+stringData:
+  POSTGRES_USER: "postgres"
+  POSTGRES_PASSWORD: "postgres"
+
+---
+#  BLUE Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.worker.service.name }}-blue
+  labels:
+    app: {{ .Values.worker.selector }}
+    version: blue
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.worker.selector }}
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.worker.selector }}
+        version: blue
+    spec:
+      containers:
+        - name: {{ .Values.worker.service.name }}
+          image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tagBlue }}"
+          imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
+          env:
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: POSTGRES_HOST
+            - name: POSTGRES_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: POSTGRES_PORT
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: worker-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: worker-secret
+                  key: POSTGRES_PASSWORD
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: REDIS_PORT
+            - name: SLEEP_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: SLEEP_MS
+
+---
+#  GREEN Deployment
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.worker.service.name }}-green
+  labels:
+    app: {{ .Values.worker.selector }}
+    version: green
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.worker.selector }}
+      version: green
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.worker.selector }}
+        version: green
+    spec:
+      containers:
+        - name: {{ .Values.worker.service.name }}
+          image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tagGreen }}"
+          imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
+          env:
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: POSTGRES_HOST
+            - name: POSTGRES_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: POSTGRES_PORT
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: worker-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: worker-secret
+                  key: POSTGRES_PASSWORD
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: REDIS_PORT
+            - name: SLEEP_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: SLEEP_MS
+
+---
+
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.worker.service.name }}
+spec:
+  selector:
+    app: {{ .Values.worker.selector }}
+    version: {{ .Values.worker.activeVersion }}  
+  ports:
+    - protocol: TCP
+      port: {{ .Values.worker.service.port }}
+      targetPort: {{ .Values.worker.service.port }}
+  type: {{ .Values.worker.service.type }}

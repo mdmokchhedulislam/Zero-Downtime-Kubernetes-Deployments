@@ -1,0 +1,13 @@
+worker:
+  service:
+    name: worker
+    port: 4000
+    type: ClusterIP
+  selector: worker-app
+  replicaCount: 2
+  image:
+    repository: myrepo/worker
+    tagBlue: v1
+    tagGreen: v2
+    pullPolicy: IfNotPresent
+  activeVersion: blue   

@@ -1,5 +1,5 @@
 apiVersion: v2
-name: worker for canary deployment
+name: connector for blue-green deployment
 description: A Helm chart for result microservices
 type: application
 version: 1.0.0
