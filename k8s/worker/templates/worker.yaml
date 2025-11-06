@@ -22,7 +22,7 @@ metadata:
 type: Opaque
 stringData:
   POSTGRES_USER: "postgres"
-  POSTGRES_PASSWORD: "mypassword123"
+  POSTGRES_PASSWORD: "postgres"
   REDIS_PASSWORD: "mypassword123"
 
 ---
