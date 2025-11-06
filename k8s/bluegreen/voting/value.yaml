@@ -1,0 +1,15 @@
+vote:
+  service:
+    name: vote
+    type: ClusterIP
+    port: 80
+  selector: vote-app
+  replicaCount: 2
+
+  image:
+    repository: mokchhedul/vote_service
+    tagBlue: v1
+    tagGreen: v2
+    pullPolicy: IfNotPresent
+
+  activeVersion: blue
