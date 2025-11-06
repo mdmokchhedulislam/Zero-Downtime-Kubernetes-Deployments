@@ -8,7 +8,7 @@ metadata:
   name: {{ .Values.result.service.name }}-config
 data:
   PG_HOST: "{{ .Values.result.postgres.host }}"
-  PORT: "{{ .Values.result.postgres.port }}"
+  PORT: "{{ .Values.result.service.port }}"
   PG_DATABASE: "{{ .Values.result.postgres.db }}"
 
 # ----------------------------
