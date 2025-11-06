@@ -1,0 +1,154 @@
+# ----------------------------
+# ConfigMap
+# ----------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.result.service.name }}-config
+data:
+  PG_HOST: "{{ .Values.result.postgres.host }}"
+  PORT: "{{ .Values.result.service.port }}"
+  PG_DATABASE: "{{ .Values.result.postgres.db }}"
+
+# ----------------------------
+# Secret
+# ----------------------------
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Values.result.service.name }}-secret
+type: Opaque
+stringData:
+  PG_USER: "{{ .Values.result.postgres.user }}"
+  PG_PASSWORD: "{{ .Values.result.postgres.password }}"
+
+# ----------------------------
+# Blue Deployment
+# ----------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.result.service.name }}-blue
+  labels:
+    app: {{ .Values.result.service.selector }}
+    version: blue
+spec:
+  replicas: {{ .Values.result.service.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.result.service.selector }}
+      version: blue
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.result.service.selector }}
+        version: blue
+    spec:
+      containers:
+        - name: {{ .Values.result.service.name }}
+          image: "{{ .Values.result.image.repository }}:{{ .Values.result.image.tagBlue }}"
+          imagePullPolicy: {{ .Values.result.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.result.service.port }}
+          env:
+            - name: PG_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.result.service.name }}-config
+                  key: PG_HOST
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.result.service.name }}-config
+                  key: PORT
+            - name: PG_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.result.service.name }}-config
+                  key: PG_DATABASE
+            - name: PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.result.service.name }}-secret
+                  key: PG_USER
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.result.service.name }}-secret
+                  key: PG_PASSWORD
+
+# ----------------------------
+# Green Deployment
+# ----------------------------
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: {{ .Values.result.service.name }}-green
+  labels:
+    app: {{ .Values.result.service.selector }}
+    version: green
+spec:
+  replicas: {{ .Values.result.service.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.result.service.selector }}
+      version: green
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.result.service.selector }}
+        version: green
+    spec:
+      containers:
+        - name: {{ .Values.result.service.name }}
+          image: "{{ .Values.result.image.repository }}:{{ .Values.result.image.tagGreen }}"
+          imagePullPolicy: {{ .Values.result.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.result.service.port }}
+          env:
+            - name: PG_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.result.service.name }}-config
+                  key: PG_HOST
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.result.service.name }}-config
+                  key: PORT
+            - name: PG_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.result.service.name }}-config
+                  key: PG_DATABASE
+            - name: PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.result.service.name }}-secret
+                  key: PG_USER
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.result.service.name }}-secret
+                  key: PG_PASSWORD
+
+# ----------------------------
+# Service (Switch Between Blue/Green)
+# ----------------------------
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.result.service.name }}
+spec:
+  selector:
+    app: {{ .Values.result.service.selector }}
+    version: {{ .Values.result.activeVersion }}  
+  ports:
+    - protocol: TCP
+      port: {{ .Values.result.service.port }}
+      targetPort: {{ .Values.result.service.port }}
+  type: {{ .Values.result.service.type }}

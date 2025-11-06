@@ -1,0 +1,20 @@
+result:
+  service:
+    name: result
+    port: 80
+    type: ClusterIP
+    replicaCount: 2
+    selector: result-app
+
+  image:
+    repository: mokchhedul/result-service
+    tagBlue: v1
+    tagGreen: v2
+    pullPolicy: IfNotPresent
+
+  postgres:
+    host: postgres
+    db: persondb
+    user: postgres
+    password: postgres
+  activeVersion: blue
