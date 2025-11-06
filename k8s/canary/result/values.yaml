@@ -11,11 +11,11 @@ result:
     canaryTag: v2
     pullPolicy: IfNotPresent
   postgres:
-    host: postgres-host
+    host: postgres
     port: 5432
     db: persondb
     user: postgres
-    password: password123
+    password: postgres
   ingress:
     host: www.mokchhedulislam.page.gd
   canary:
