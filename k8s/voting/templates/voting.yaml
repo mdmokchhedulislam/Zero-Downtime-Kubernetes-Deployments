@@ -7,7 +7,6 @@ data:
   OPTION_B: "Dogs"
   REDIS_HOST: "redis"
   REDIS_PORT: "6379"
-  REDIS_PASSWORD: "{{ .Values.vote.password }}"  # <-- Redis password যোগ
   FLASK_PORT: "80"
   FLASK_DEBUG: "True"
 
@@ -53,11 +52,6 @@ spec:
                 configMapKeyRef:
                   name: vote-config
                   key: REDIS_PORT
-            - name: REDIS_PASSWORD  # <-- Redis password inject করা
-              valueFrom:
-                configMapKeyRef:
-                  name: vote-config
-                  key: REDIS_PASSWORD
             - name: FLASK_PORT
               valueFrom:
                 configMapKeyRef:

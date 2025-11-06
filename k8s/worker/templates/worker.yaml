@@ -23,7 +23,7 @@ type: Opaque
 stringData:
   POSTGRES_USER: "postgres"
   POSTGRES_PASSWORD: "postgres"
-  REDIS_PASSWORD: "mypassword123"
+
 
 ---
 apiVersion: apps/v1
@@ -83,11 +83,6 @@ spec:
                 configMapKeyRef:
                   name: worker-config
                   key: REDIS_PORT
-            - name: REDIS_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  name: worker-secret
-                  key: REDIS_PASSWORD
 
             # App Settings
             - name: SLEEP_MS
