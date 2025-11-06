@@ -82,7 +82,6 @@ metadata:
 spec:
   selector:
     app: {{ .Values.result.service.selector }}
-    version: stable
   ports:
     - protocol: TCP
       port: {{ .Values.result.service.port }}
