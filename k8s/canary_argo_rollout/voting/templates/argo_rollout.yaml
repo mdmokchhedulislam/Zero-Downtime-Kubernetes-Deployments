@@ -1,0 +1,119 @@
+# ----------------------------
+# ConfigMap
+# ----------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.vote.service.name }}-config
+data:
+  OPTION_A: "{{ .Values.vote.options.optionA }}"
+  OPTION_B: "{{ .Values.vote.options.optionB }}"
+  REDIS_HOST: "{{ .Values.vote.redis.host }}"
+  REDIS_PORT: "{{ .Values.vote.redis.port }}"
+  FLASK_PORT: "{{ .Values.vote.flask.port }}"
+  FLASK_DEBUG: "{{ .Values.vote.flask.debug }}"
+
+# ----------------------------
+# Rollout with Canary Strategy
+# ----------------------------
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ .Values.vote.service.name }}
+spec:
+  replicas: {{ .Values.vote.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.vote.service.selector }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.vote.service.selector }}
+    spec:
+      containers:
+        - name: {{ .Values.vote.service.name }}
+          image: "{{ .Values.vote.image.repository }}:{{ .Values.vote.image.tag }}"
+          imagePullPolicy: {{ .Values.vote.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.vote.service.port }}
+          env:
+            - name: OPTION_A
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: OPTION_A
+            - name: OPTION_B
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: OPTION_B
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: REDIS_PORT
+            - name: FLASK_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: FLASK_PORT
+            - name: FLASK_DEBUG
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.vote.service.name }}-config
+                  key: FLASK_DEBUG
+  strategy:
+    canary:
+      steps:
+        - setWeight: 20          # send 20% traffic to new version
+        - pause: {duration: 30s} # pause 30s for monitoring
+        - setWeight: 50          # 50% traffic
+        - pause: {duration: 30s} # pause again
+        - setWeight: 100         # full traffic
+
+# ----------------------------
+# Service
+# ----------------------------
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.vote.service.name }}
+spec:
+  selector:
+    app: {{ .Values.vote.service.selector }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.vote.service.port }}
+      targetPort: {{ .Values.vote.service.port }}
+  type: {{ .Values.vote.service.type }}
+
+# ----------------------------
+# Ingress
+# ----------------------------
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.vote.service.name }}-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+    # Argo Rollouts can use this service; traffic split is handled by Rollout
+spec:
+  rules:
+    - host: {{ .Values.vote.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.vote.service.name }}
+                port:
+                  number: {{ .Values.vote.service.port }}

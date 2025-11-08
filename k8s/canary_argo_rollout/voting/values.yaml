@@ -1,0 +1,33 @@
+vote:
+  service:
+    name: vote-app          
+    selector: vote-app     
+    port: 5000              
+    type: ClusterIP         
+
+  replicaCount: 3          
+
+  image:
+    repository: mokchhedul/vote_service
+    tag: v1
+    pullPolicy: IfNotPresent
+    canaryTag: v2    
+
+  options:
+    optionA: "Cats"
+    optionB: "Dogs"
+
+  redis:
+    host: redis-master
+    port: "6379"
+
+  flask:
+    port: "80"
+    debug: "true"
+
+  ingress:
+    host: www.mokchhedulislam.page.gd
+
+  canary:
+    weight: 20            
+    replicaCount: 1        

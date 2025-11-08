@@ -1,0 +1,123 @@
+# ----------------------------
+# ConfigMap
+# ----------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: {{ .Values.result.service.name }}-config
+data:
+  PG_HOST: "{{ .Values.result.postgres.host }}"
+  PORT: "{{ .Values.result.service.port }}"
+  PG_DATABASE: "{{ .Values.result.postgres.db }}"
+
+# ----------------------------
+# Secret
+# ----------------------------
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: {{ .Values.result.service.name }}-secret
+type: Opaque
+stringData:
+  PG_USER: "{{ .Values.result.postgres.user }}"
+  PG_PASSWORD: "{{ .Values.result.postgres.password }}"
+
+# ----------------------------
+# Rollout with Canary Strategy
+# ----------------------------
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ .Values.result.service.name }}
+spec:
+  replicas: {{ .Values.result.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.result.service.selector }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.result.service.selector }}
+    spec:
+      containers:
+        - name: {{ .Values.result.service.name }}
+          image: "{{ .Values.result.image.repository }}:{{ .Values.result.image.tag }}"
+          imagePullPolicy: {{ .Values.result.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.result.service.port }}
+          env:
+            - name: PG_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.result.service.name }}-config
+                  key: PG_HOST
+            - name: PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.result.service.name }}-config
+                  key: PORT
+            - name: PG_DATABASE
+              valueFrom:
+                configMapKeyRef:
+                  name: {{ .Values.result.service.name }}-config
+                  key: PG_DATABASE
+            - name: PG_USER
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.result.service.name }}-secret
+                  key: PG_USER
+            - name: PG_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: {{ .Values.result.service.name }}-secret
+                  key: PG_PASSWORD
+  strategy:
+    canary:
+      steps:
+        - setWeight: {{ .Values.result.canary.weight }}
+        - pause: {duration: 30s}
+        - setWeight: 50
+        - pause: {duration: 30s}
+        - setWeight: 100
+
+# ----------------------------
+# Service
+# ----------------------------
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.result.service.name }}
+spec:
+  selector:
+    app: {{ .Values.result.service.selector }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.result.service.port }}
+      targetPort: {{ .Values.result.service.port }}
+  type: {{ .Values.result.service.type }}
+
+# ----------------------------
+# Ingress
+# ----------------------------
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.result.service.name }}-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: {{ .Values.result.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.result.service.name }}
+                port:
+                  number: {{ .Values.result.service.port }}

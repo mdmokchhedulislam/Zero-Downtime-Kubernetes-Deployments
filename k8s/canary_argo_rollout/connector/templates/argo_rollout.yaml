@@ -1,0 +1,141 @@
+# ----------------------------
+# ConfigMap
+# ----------------------------
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: worker-config
+data:
+  POSTGRES_HOST: "{{ .Values.worker.postgres.host }}"
+  POSTGRES_PORT: "{{ .Values.worker.postgres.port }}"
+  POSTGRES_DB: "{{ .Values.worker.postgres.db }}"
+  REDIS_HOST: "{{ .Values.worker.redis.host }}"
+  REDIS_PORT: "{{ .Values.worker.redis.port }}"
+  SLEEP_MS: "{{ .Values.worker.sleepMS }}"
+
+# ----------------------------
+# Secret
+# ----------------------------
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: worker-secret
+type: Opaque
+stringData:
+  POSTGRES_USER: "{{ .Values.worker.postgres.user }}"
+  POSTGRES_PASSWORD: "{{ .Values.worker.postgres.password }}"
+
+# ----------------------------
+# Rollout with Canary Strategy
+# ----------------------------
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Rollout
+metadata:
+  name: {{ .Values.worker.service.name }}
+spec:
+  replicas: {{ .Values.worker.replicaCount }}
+  selector:
+    matchLabels:
+      app: {{ .Values.worker.service.selector }}
+  template:
+    metadata:
+      labels:
+        app: {{ .Values.worker.service.selector }}
+    spec:
+      containers:
+        - name: {{ .Values.worker.service.name }}
+          image: "{{ .Values.worker.image.repository }}:{{ .Values.worker.image.tag }}"
+          imagePullPolicy: {{ .Values.worker.image.pullPolicy }}
+          ports:
+            - containerPort: {{ .Values.worker.service.port }}
+          env:
+            - name: POSTGRES_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: POSTGRES_HOST
+            - name: POSTGRES_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: POSTGRES_PORT
+            - name: POSTGRES_DB
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: POSTGRES_DB
+            - name: POSTGRES_USER
+              valueFrom:
+                secretKeyRef:
+                  name: worker-secret
+                  key: POSTGRES_USER
+            - name: POSTGRES_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: worker-secret
+                  key: POSTGRES_PASSWORD
+            - name: REDIS_HOST
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: REDIS_HOST
+            - name: REDIS_PORT
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: REDIS_PORT
+            - name: SLEEP_MS
+              valueFrom:
+                configMapKeyRef:
+                  name: worker-config
+                  key: SLEEP_MS
+  strategy:
+    canary:
+      steps:
+        - setWeight: {{ .Values.worker.canary.weight }}
+        - pause: {duration: 30s}
+        - setWeight: 50
+        - pause: {duration: 30s}
+        - setWeight: 100
+
+# ----------------------------
+# Service
+# ----------------------------
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ .Values.worker.service.name }}
+spec:
+  selector:
+    app: {{ .Values.worker.service.selector }}
+  ports:
+    - protocol: TCP
+      port: {{ .Values.worker.service.port }}
+      targetPort: {{ .Values.worker.service.port }}
+  type: {{ .Values.worker.service.type }}
+
+# ----------------------------
+# Ingress
+# ----------------------------
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: {{ .Values.worker.service.name }}-ingress
+  annotations:
+    kubernetes.io/ingress.class: nginx
+spec:
+  rules:
+    - host: {{ .Values.worker.ingress.host }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: {{ .Values.worker.service.name }}
+                port:
+                  number: {{ .Values.worker.service.port }}

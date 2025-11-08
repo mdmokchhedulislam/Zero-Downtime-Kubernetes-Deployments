@@ -1,0 +1,34 @@
+worker:
+  service:
+    name: worker
+    selector: worker
+    port: 4000
+    type: ClusterIP
+
+  replicaCount: 3
+
+  canary:
+    replicaCount: 1
+    weight: 10       
+
+  image:
+    repository: mokchhedul/worker_service
+    tag: latest
+    canaryTag: v2
+    pullPolicy: IfNotPresent
+
+  postgres:
+    host: postgres
+    port: 5432
+    db: persondb
+    user: postgres
+    password: postgres
+
+  redis:
+    host: redis
+    port: 6379
+
+  sleepMS: 100
+
+  ingress:
+    host: www.mokchhedulislam.page.gd
