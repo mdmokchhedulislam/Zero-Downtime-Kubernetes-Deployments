@@ -34,6 +34,11 @@ metadata:
   name: {{ .Values.result.service.name }}
 spec:
   replicas: {{ .Values.result.service.replicaCount }}
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1         
+      maxUnavailable: 0 
   selector:
     matchLabels:
       app: {{ .Values.result.service.selector }}
